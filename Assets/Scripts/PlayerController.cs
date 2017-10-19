@@ -1,38 +1,66 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 public class PlayerController : MonoBehaviour {
 
-    public Controls.playerEnum player;
+    public InputManager.playerEnum player;
     private Rigidbody2D rb;
-    private const float MOVE_SPEED = 200.0f;
+    private const float MOVE_SPEED = 5.0f;
     private const float JUMP_DISTANCE = 800.0f;
     private const float MAX_VELOCITY_X = 4f;
     private const float MAX_VELOCITY_Y = 30.0f;
-    private string joystick;
+    private bool jumped = false;
+    private bool shot = false;
+    private bool canShoot = true;
+    private Vector2 jumpVector = new Vector2(0, 350);
+    private float xMov, yMov, xAim, yAim;
+    private float shootDelay = 0.1f;
+    public GameObject shotIndicator;
+    public GameObject bulletPrefab;
+    public GameObject spawnLocation;
+    public GameControl.Teams team;
+    public float health = 10f;
+    public PlayerController teammate;
+
+    public int playersHit;
 
 	// Use this for initialization
 	void Start () {
         rb = GetComponent<Rigidbody2D>();
-        joystick = "joystick " + (int)player;
 	}
 	
 	// Update is called once per frame
 	void Update () {
         GetInput();
-        //LimitVelocity();
+        LimitVelocity();
 	}
+
+    private void FixedUpdate()
+    {
+        if (jumped)
+        {
+            jumped = false;
+            rb.AddForce(jumpVector);
+        }
+
+        if (shot)
+        {
+            shot = false;
+            GameObject go = Instantiate(bulletPrefab, spawnLocation.transform.position, shotIndicator.transform.rotation);
+            go.GetComponent<Bullet>().originatingPlayer = this;
+            go.transform.Translate(go.transform.forward);
+        }
+
+        transform.Translate(xMov, yMov, 0);
+        var angle = new Vector3(0, 0, Mathf.Atan2(xAim, yAim) * 180 / Mathf.PI);
+        shotIndicator.transform.eulerAngles = angle;
+    }
 
     private void LimitVelocity()
     {
-        if(rb.velocity.x > MAX_VELOCITY_X)
-        {
-            rb.velocity = new Vector2(MAX_VELOCITY_X, rb.velocity.y);
-        }
-        if (rb.velocity.x < -MAX_VELOCITY_X)
-        {
-            rb.velocity = new Vector2(-MAX_VELOCITY_X, rb.velocity.y);
-        }
-        
+        float xVel = Mathf.Clamp(rb.velocity.x, -MAX_VELOCITY_X, MAX_VELOCITY_X);
+        float yVel = Mathf.Clamp(rb.velocity.y, -MAX_VELOCITY_Y, MAX_VELOCITY_Y);
+        rb.velocity = new Vector2(xVel, yVel);
     }
 
     private bool CheckGrounded()
@@ -44,27 +72,62 @@ public class PlayerController : MonoBehaviour {
 
     private void GetInput()
     {
-        if (Input.GetAxis(joystick + "LeftTrigger") != 0f)
+        //Jump
+        if (InputManager.GetButtonDown(player, "Jump"))
         {
             if (CheckGrounded())
             {
-                float axis = Input.GetAxis(joystick + "LeftTrigger");
-                rb.velocity = (new Vector2(rb.velocity.x, JUMP_DISTANCE * axis * Time.deltaTime));
+                jumped = true;
+            }
+            else
+            {
+                Debug.Log(player.ToString() + " couldn't jump");
             }
         }
-        if (Input.GetAxis(joystick + "LeftStick") != 0f)
+
+        //Switch Weapons
+        if (InputManager.GetButtonDown(player, "SwitchWeapons"))
         {
-            Debug.Log(MOVE_SPEED * Input.GetAxis(joystick + "LeftStick"));
-            float axis = Input.GetAxis(joystick + "LeftStick");
-            rb.velocity = (new Vector2(MOVE_SPEED * axis * Time.deltaTime,rb.velocity.y));
+            Debug.Log(player.ToString() + " changed weapons");
         }
-        else if(CheckGrounded())
+
+        if(InputManager.GetAxis(player, "Shoot") > 0.5f)
         {
-            rb.velocity = new Vector2(0,rb.velocity.y);
+            if (canShoot)
+            {
+                canShoot = false;
+                shot = true;
+                Invoke("SetCanShoot", shootDelay);
+            }
         }
-        else if (!CheckGrounded())
+        else
         {
-            rb.velocity += new Vector2(-rb.velocity.x * Time.deltaTime * 0.1f, 0);
+            shot = false;
+        }
+
+        xMov = InputManager.GetAxis(player, "Horizontal") * MOVE_SPEED * Time.deltaTime;
+        yMov = -InputManager.GetAxis(player, "Vertical") * MOVE_SPEED * Time.deltaTime;
+        xAim = -InputManager.GetAxis(player, "Horizontal2") * MOVE_SPEED * Time.deltaTime;
+        yAim = -InputManager.GetAxis(player, "Vertical2") * MOVE_SPEED * Time.deltaTime;
+    }
+
+    private void SetCanShoot()
+    {
+        canShoot = true;
+    }
+
+    public void HitPlayer()
+    {
+        playersHit += 1;
+    }
+
+    public void TakeDamage(float damage)
+    {
+        health -= damage;
+
+        if(health <= 0)
+        {
+            Debug.Log("Died");
         }
     }
 }
