@@ -20,9 +20,10 @@ public class Button : MonoBehaviour {
     {
         if (collision.GetComponent<PlayerController>() != null)
         {
-            if (collision.GetComponent<PlayerController>().team == team)
+            PlayerController playerCon = collision.GetComponent<PlayerController>();
+            if (playerCon.team == team)
             {
-                Debug.Log("button active");
+                playerCon.teammate.GetComponent<Buffs>().damage = 1.2f;
             }
             else
             {
