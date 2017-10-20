@@ -6,7 +6,7 @@ public class Bullet : MonoBehaviour {
     private float speed = 7.0f;
     private float lifeTime = 4.0f;
     [SerializeField]
-    private float damage = 1f;
+    public float damage = 1f;
 
 	// Use this for initialization
 	void Start () {
@@ -29,6 +29,12 @@ public class Bullet : MonoBehaviour {
             }
             originatingPlayer.HitPlayer();
             playerCon.TakeDamage(damage);
+            Destroy(gameObject);
+        }else if(collision.transform.tag == "Boss")
+        {
+            Boss boss = collision.transform.GetComponent<Boss>();
+            originatingPlayer.RecordDamage(damage);
+            boss.TakeDamage(damage, originatingPlayer);
             Destroy(gameObject);
         }
     }
